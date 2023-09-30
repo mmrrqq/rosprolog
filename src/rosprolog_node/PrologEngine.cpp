@@ -1,20 +1,10 @@
 
-#include <ros/ros.h>
-#include <ros/console.h>
+#include <rclcpp/rclcpp.hpp>
+#include <console_bridge/console.h>
 #include <rosprolog/rosprolog_node/PrologEngine.h>
 
 PrologEngine::PrologEngine() :
-	is_claimed_(false),
-	is_finished_(false),
-	is_terminated_(false),
-	is_incremental_(false),
-	has_terminate_request_(false),
-	has_solution_request_(false),
-	has_finish_request_(false),
-	has_error_(false),
-	thread_(&PrologEngine::run, this),
-	goal_(""),
-	error_("")
+	thread_(&PrologEngine::run, this)
 {
 }
 
@@ -51,15 +41,15 @@ void PrologEngine::run()
 		ss << thread_.get_id();
 		thread_id = ss.str();
 	}
-	ROS_DEBUG("[%s] rosprolog thread started.", thread_id.c_str());
+	RCLCPP_DEBUG(rclcpp::get_logger("rosprolog_engine"),"[%s] rosprolog thread started.", thread_id.c_str());
 	
 	if(!PL_thread_attach_engine(NULL)) {
-		ROS_ERROR("rosprolog failed to attach engine!");
+		RCLCPP_ERROR(rclcpp::get_logger("rosprolog_engine"),"rosprolog failed to attach engine!");
 		is_terminated_ = true;
 		return;
 	}
 	//
-	while(ros::ok()) {
+	while(rclcpp::ok()) {
 		// wait for a claim
 		{
 			std::unique_lock<std::mutex> lk(thread_m_);
@@ -67,7 +57,7 @@ void PrologEngine::run()
 			                                  (is_claimed_ && !is_finished_);});
 			if(has_terminate_request_) break;
 		}
-		ROS_DEBUG("[%s] rosprolog thread claimed.", thread_id.c_str());
+		RCLCPP_DEBUG(rclcpp::get_logger("rosprolog_engine"),"[%s] rosprolog thread claimed.", thread_id.c_str());
 		// create a query
 		term_t a1 = PL_new_term_refs(2);
 		term_t a2 = a1+1;
@@ -78,7 +68,7 @@ void PrologEngine::run()
 		    PL_pred(PL_new_functor(PL_new_atom("rosprolog_query"),2),NULL),
 		    a1);
 		// do the query processing
-		while(ros::ok()) {
+		while(rclcpp::ok()) {
 			// here is where the main work is done
 			if(!PL_next_solution(qid)) {
 				has_error_ = PrologEngine::pl_exception(qid,error_);
@@ -124,10 +114,10 @@ void PrologEngine::run()
 		solutions_cv_.notify_all();
 		PL_close_query(qid);
 		PL_reset_term_refs(a1);
-		ROS_DEBUG("[%s] rosprolog thread released.", thread_id.c_str());
+		RCLCPP_DEBUG(rclcpp::get_logger("rosprolog_engine"),"[%s] rosprolog thread released.", thread_id.c_str());
 	}
 	
-	ROS_DEBUG("[%s] rosprolog thread terminated.", thread_id.c_str());
+	RCLCPP_DEBUG(rclcpp::get_logger("rosprolog_engine"),"[%s] rosprolog thread terminated.", thread_id.c_str());
 	finished_cv_.notify_all();
 	solutions_cv_.notify_all();
 	is_terminated_ = true;

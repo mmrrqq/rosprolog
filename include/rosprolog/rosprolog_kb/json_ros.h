@@ -9,14 +9,14 @@
 #define PL_SAFE_ARG_MACROS
 #include <SWI-Prolog.h>
 // rosprolog
-#include <rosprolog/JSONWrapper.h>
+#include <rosprolog/srv/json_wrapper.hpp>
 
 namespace json_ros {
 	/**
 	 * Subscribe to a ROS topic by sending a JSON-encoded
 	 * command to the *json_ros* node.
 	 */
-	static rosprolog::JSONWrapperResponse subscribe(
+	static rosprolog::srv::JSONWrapper_Response subscribe(
 			const std::string &subscriber,
 			const std::string &topic,
 			const std::string &json_data,
@@ -26,7 +26,7 @@ namespace json_ros {
 	 * Unsubscribe from a ROS topic by sending a JSON-encoded
 	 * command to the *json_ros* node.
 	 */
-	static rosprolog::JSONWrapperResponse unsubscribe(
+	static rosprolog::srv::JSONWrapper_Response unsubscribe(
 			const std::string &subscriber,
 			const std::string &topic,
 			const std::string &json_data);
@@ -35,7 +35,7 @@ namespace json_ros {
 	 * Publish on a ROS topic by sending a JSON-encoded
 	 * command to the *json_ros* node.
 	 */
-	static rosprolog::JSONWrapperResponse publish(
+	static rosprolog::srv::JSONWrapper_Response publish(
 			const std::string &topic,
 			const std::string &json_data);
 	
@@ -43,7 +43,7 @@ namespace json_ros {
 	 * Invoke a ROS service by sending a JSON-encoded
 	 * command to the *json_ros* node.
 	 */
-	static rosprolog::JSONWrapperResponse call_service(
+	static rosprolog::srv::JSONWrapper_Response call_service(
 			const std::string &service_path,
 			const std::string &json_data);
 	
@@ -51,7 +51,7 @@ namespace json_ros {
 	 * Invoke a ROS action by sending a JSON-encoded
 	 * command to the *json_ros* node.
 	 */
-// 	static rosprolog::JSONWrapperResponse call_action(
+// 	static rosprolog::srv::JSONWrapper_Response call_action(
 // 			const std::string &action_path,
 // 			const std::string &json_data,
 // 			const term_t &update_callback);

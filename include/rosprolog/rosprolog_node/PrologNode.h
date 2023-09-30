@@ -5,50 +5,52 @@
 #include <string>
 #include <memory>
 #include <iostream>
+
+// rclcpp
+#include <rclcpp/rclcpp.hpp>
 // boost
 #include <boost/shared_ptr.hpp>
 // SWI Prolog
 #include <SWI-Prolog.h>
 // rosprolog
 #include <rosprolog/rosprolog_node/PrologPool.h>
-#include <json_prolog_msgs/PrologQuery.h>
-#include <json_prolog_msgs/PrologFinish.h>
-#include <json_prolog_msgs/PrologNextSolution.h>
+#include <json_prolog_msgs/srv/prolog_query.hpp>
+#include <json_prolog_msgs/srv/prolog_finish.hpp>
+#include <json_prolog_msgs/srv/prolog_next_solution.hpp>
 
 /**
  * ROS service interface to rosprolog
  *
  * @author Daniel Beßler
  */
-class PrologNode {
+class PrologNode : public rclcpp::Node {
 public:
-	PrologNode(ros::NodeHandle *node);
+	PrologNode(const char* ns);
 	
-	bool query(
-		json_prolog_msgs::PrologQuery::Request &req,
-		json_prolog_msgs::PrologQuery::Response &res);
+	bool query(const std::shared_ptr<json_prolog_msgs::srv::PrologQuery_Request> req,
+	           std::shared_ptr<json_prolog_msgs::srv::PrologQuery_Response> res);
 	
-	void finish();
-	bool finish(
-		json_prolog_msgs::PrologFinish::Request &req,
-		json_prolog_msgs::PrologFinish::Response &res);
+	void finalize();
+	bool finish(const std::shared_ptr<json_prolog_msgs::srv::PrologFinish_Request> req,
+		        std::shared_ptr<json_prolog_msgs::srv::PrologFinish_Response> res);
 	
-	bool next_solution(
-		json_prolog_msgs::PrologNextSolution::Request &req,
-		json_prolog_msgs::PrologNextSolution::Response &res);
+	bool next_solution(const std::shared_ptr<json_prolog_msgs::srv::PrologNextSolution_Request> req,
+		               std::shared_ptr<json_prolog_msgs::srv::PrologNextSolution_Response> res);
 	
 	bool is_initialized() { return is_initialized_; }
 	
 private:
-	ros::NodeHandle *node_;
-	std::map< std::string, boost::shared_ptr<PrologEngine> > claimed_engines_;
+	bool is_initialized_ = false;
 	PrologPool thread_pool_;
+	std::map< std::string, boost::shared_ptr<PrologEngine> > claimed_engines_;
 	
-	bool is_initialized_;
-	
+	rclcpp::Service<json_prolog_msgs::srv::PrologQuery>::SharedPtr prolog_query_;
+	rclcpp::Service<json_prolog_msgs::srv::PrologNextSolution>::SharedPtr prolog_next_solution_;
+	rclcpp::Service<json_prolog_msgs::srv::PrologFinish>::SharedPtr prolog_finish_;
+
 	bool exists(const std::string &id);
 	
-	void finish(const std::string &id);
+	void finalize(const std::string &id);
 	
 	bool has_more_solutions(const std::string &id);
 	
@@ -56,7 +58,7 @@ private:
 	
 	static int ensure_loaded(const char *ros_pkg);
 	
-	static int num_pl_threads(ros::NodeHandle *node);
+	static int num_pl_threads(rclcpp::Node *node);
 };
 
 #endif //__ROSPROLOG_NODE_H__

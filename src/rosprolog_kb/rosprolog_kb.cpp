@@ -2,17 +2,17 @@
 #include "private/rosprolog_kb_priv.h"
 
 #include <stdlib.h>
-
-#include <ros/ros.h>
-#include <ros/package.h>
-#include <ros/console.h>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp/executor.hpp>
+#include <rclcpp/executors.hpp>
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <console_bridge/console.h>
 
 /*********************************/
 /********** KBNode ***************/
 /*********************************/
     
-rosprolog_kb::KBNode::KBNode():
-	nh_(),
+rosprolog_kb::KBNode::KBNode(): rclcpp::Node("~"),
 	thread_(&KBNode::run, this),
 	thread_pool_(2)
 {
@@ -20,23 +20,23 @@ rosprolog_kb::KBNode::KBNode():
 
 rosprolog_kb::KBNode::~KBNode()
 {
-	ros::shutdown();
+	rclcpp::shutdown();
 	thread_.join();
 }
 
 rosprolog_kb::KBNode& rosprolog_kb::KBNode::get()
 {
-	if(!ros::isInitialized()) {
+	if(!rclcpp::ok()) {
 		int argc=0;
-		ros::init(argc, (char**)NULL, std::string("knowrob"));
+		rclcpp::init(argc, (char**)NULL);
 	}
-	static rosprolog_kb::KBNode the_node;
-	return the_node;
+	static std::shared_ptr<rosprolog_kb::KBNode> the_node = std::make_shared<rosprolog_kb::KBNode>();
+	return *the_node.get();
 }
 
-ros::NodeHandle& rosprolog_kb::KBNode::node()
+rclcpp::Node* rosprolog_kb::KBNode::node()
 {
-	return KBNode::get().nh_;
+	return static_cast<rclcpp::Node*>(&KBNode::get());
 }
 
 PrologPool& rosprolog_kb::KBNode::thread_pool()
@@ -46,15 +46,15 @@ PrologPool& rosprolog_kb::KBNode::thread_pool()
 
 void rosprolog_kb::KBNode::run()
 {
-	ROS_DEBUG("rosprolog_kb thread started.");
+	RCLCPP_DEBUG(rclcpp::get_logger("rosprolog_kbnode"),"rosprolog_kb thread started.");
 	
-	ros::MultiThreadedSpinner spinner(4);
+	rclcpp::executors::MultiThreadedExecutor spinner(rclcpp::ExecutorOptions(), 4);
 	spinner.spin();
 	
-	ROS_DEBUG("rosprolog_kb thread stopped.");
+	RCLCPP_DEBUG(rclcpp::get_logger("rosprolog_kbnode"),"rosprolog_kb thread stopped.");
 }
 
-ros::NodeHandle& rosprolog_kb::node()
+rclcpp::Node* rosprolog_kb::node()
 {
 	return rosprolog_kb::KBNode::node();
 }
@@ -75,34 +75,55 @@ PREDICATE(ros_init, 0) {
 
 PREDICATE(ros_info, 1)
 {
-	ROS_INFO("%s", (char*)PL_A1);
+	RCLCPP_INFO(rclcpp::get_logger("rosprolog_kb"),"%s", (char*)PL_A1);
 	return TRUE;
 }
 
 PREDICATE(ros_warn, 1)
 {
-	ROS_WARN("%s", (char*)PL_A1);
+	RCLCPP_WARN(rclcpp::get_logger("rosprolog_kb"),"%s", (char*)PL_A1);
 	return TRUE;
 }
 
 PREDICATE(ros_error, 1)
 {
-	ROS_ERROR("%s", (char*)PL_A1);
+	RCLCPP_ERROR(rclcpp::get_logger("rosprolog_kb"),"%s", (char*)PL_A1);
 	return TRUE;
 }
 
 PREDICATE(ros_debug, 1)
 {
-	ROS_DEBUG("%s", (char*)PL_A1);
+	RCLCPP_DEBUG(rclcpp::get_logger("rosprolog_kb"),"%s", (char*)PL_A1);
 	return TRUE;
 }
 
+// https://github.com/ros2/demos/blob/humble/logging_demo/src/logger_config_component.cpp
 PREDICATE(ros_set_logger_level, 1)
 {
-	if(ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Level((int)PL_A1)))
-	{
-		ros::console::notifyLoggerLevelsChanged();
-	}
+	const std::string severity_string = (char*)PL_A1;
+	int severity;
+  	rcutils_ret_t ret = rcutils_logging_severity_level_from_string(
+    	severity_string.c_str(), rcl_get_default_allocator(), &severity);
+
+  	if (RCUTILS_RET_LOGGING_SEVERITY_STRING_INVALID == ret) {
+    	RCLCPP_ERROR(rclcpp::get_logger("rosprolog_kb"), "Unknown severity '%s'", severity_string.c_str());
+    	return FALSE;
+  	}
+
+  	if (RCUTILS_RET_OK != ret) {
+    	RCLCPP_ERROR(rclcpp::get_logger("rosprolog_kb"), "Error %d getting severity level from request: %s", ret,
+      		rcutils_get_error_string().str);
+    	rcl_reset_error();
+    	return FALSE;
+  	}
+
+  	ret = rcutils_logging_set_logger_level("rosprolog_kb", severity);
+  	if (ret != RCUTILS_RET_OK) {
+    	RCLCPP_ERROR(rclcpp::get_logger("rosprolog_kb"), "Error setting severity: %s", rcutils_get_error_string().str);
+    	rcutils_reset_error();
+		return FALSE;
+  	}
+
 	return TRUE;
 }
 
@@ -112,7 +133,7 @@ PREDICATE(ros_set_logger_level, 1)
 
 PREDICATE(ros_package_path, 2)
 {
-	std::string path = ros::package::getPath(std::string((char*)PL_A1));
+	std::string path = ament_index_cpp::get_package_share_directory(std::string((char*)PL_A1));
 	if(path.empty()) return FALSE;
 	PL_A2 = path.c_str();
 	return TRUE;
@@ -120,6 +141,6 @@ PREDICATE(ros_package_path, 2)
 
 PREDICATE(ros_package_command, 2)
 {
-	PL_A2 = ros::package::command(std::string((char*)PL_A1)).c_str();
+	//PL_A2 = ros::package::command(std::string((char*)PL_A1)).c_str();
 	return TRUE;
 }

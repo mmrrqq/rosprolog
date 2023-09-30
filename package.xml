@@ -1,4 +1,5 @@
-<package>
+<?xml version="1.0"?>
+<package format="3">
   <name>rosprolog</name>
   <version>1.0.0</version>
   <description>
@@ -15,29 +16,40 @@
   <author>Lorenz Moesenlechner</author>
   <author email="danielb@uni-bremen.de">Daniel Beßler</author>
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>roslib</build_depend>
-  <build_depend>rospack</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>rospy</build_depend>
-  <build_depend>tf</build_depend>
+  <build_depend>rcutils</build_depend>
+  <build_depend>rmw_implementation_cmake</build_depend>
+  <build_depend>tf2</build_depend>
+  <build_depend>tf2_ros</build_depend>
+  <build_depend>std_msgs</build_depend>
   <build_depend>geometry_msgs</build_depend>
-  <build_depend>message_generation</build_depend>
+  <build_depend>console_bridge</build_depend>
+
+  <build_depend>rosidl_default_generators</build_depend>
+
   <build_depend>json_prolog_msgs</build_depend>
   <build_depend>libjson-glib</build_depend>
+
+  <depend>rmw_implementation</depend>
+  <depend>rcl</depend>
+  <depend>rclpy</depend>
+  <depend>rcl_action</depend>
+  <depend>rcl_yaml_param_parser</depend>
+  <depend>unique_identifier_msgs</depend>
   
-  <run_depend>swi-prolog</run_depend>
-  <run_depend>roslib</run_depend>
-  <run_depend>rospack</run_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>rospy</run_depend>
-  <run_depend>geometry_msgs</run_depend>
-  <run_depend>message_runtime</run_depend>
-  <run_depend>json_prolog_msgs</run_depend>
-  
+  <exec_depend>rcl_interfaces</exec_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <exec_depend>swi-prolog</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>json_prolog_msgs</exec_depend>
+
   <export>
+    <build_type>ament_cmake</build_type>
     <rosdoc config="rosdoc.yaml"/>
   </export>
+
+  <member_of_group>rosidl_interface_packages</member_of_group>
 
 </package>

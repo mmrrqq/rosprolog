@@ -29,14 +29,14 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 #include <rosprolog/rosprolog_client/PrologQuery.h>
 #include <rosprolog/rosprolog_client/PrologClient.h>
 
-#include <json_prolog_msgs/PrologQuery.h>
-#include <json_prolog_msgs/PrologNextSolution.h>
-#include <json_prolog_msgs/PrologFinish.h>
+#include <json_prolog_msgs/srv/prolog_query.hpp>
+#include <json_prolog_msgs/srv/prolog_next_solution.hpp>
+#include <json_prolog_msgs/srv/prolog_finish.hpp>
 
 void PrologQuery::iterator::increment()
 {
@@ -65,28 +65,29 @@ void PrologQuery::iterator::increment()
 
 bool PrologQuery::iterator::requestNextSolution()
 {
-	json_prolog_msgs::PrologNextSolutionRequest req;
-	json_prolog_msgs::PrologNextSolutionResponse resp;
+	auto req = std::make_shared<json_prolog_msgs::srv::PrologNextSolution_Request>();
+
+	req->id = query_->query_id_;
+	auto result = query_->prolog_->next_solution->async_send_request(req);
+  	if (rclcpp::spin_until_future_complete(query_->prolog_->get_node_base_interface(), result) != rclcpp::FutureReturnCode::SUCCESS){
+		throw PrologQuery::QueryError("Service call failed.");
+  	}
 	
-	req.id = query_->query_id_;
-	if(!query_->prolog_->next_solution.call(req, resp))
-	    throw PrologQuery::QueryError("Service call failed.");
-	
-	switch(resp.status){
-	case json_prolog_msgs::PrologNextSolutionResponse::NO_SOLUTION:
+	switch(result.get()->status){
+	case json_prolog_msgs::srv::PrologNextSolution_Response::NO_SOLUTION:
 		data_ = query_->bindings_.end();
 			query_->finished_ = true;
 		return false;
-	case json_prolog_msgs::PrologNextSolutionResponse::WRONG_ID:
+	case json_prolog_msgs::srv::PrologNextSolution_Response::WRONG_ID:
 		query_->finished_ = true;
 		throw PrologQuery::QueryError(
 		    "Wrong id. Maybe the server is already processing a query.");
-	case json_prolog_msgs::PrologNextSolutionResponse::QUERY_FAILED:
+	case json_prolog_msgs::srv::PrologNextSolution_Response::QUERY_FAILED:
 		query_->finished_ = true;      
 		throw PrologQuery::QueryError(
-		    "Prolog query failed: " + resp.solution);
-	case json_prolog_msgs::PrologNextSolutionResponse::OK:
-		query_->bindings_.push_back(PrologBindings::parseJSONBindings(resp.solution));
+		    "Prolog query failed: " + result.get()->solution);
+	case json_prolog_msgs::srv::PrologNextSolution_Response::OK:
+		query_->bindings_.push_back(PrologBindings::parseJSONBindings(result.get()->solution));
 		return true;
 	default:
 		query_->finished_ = true;      
@@ -109,23 +110,24 @@ PrologQuery::PrologQuery(PrologClient &prolog, const std::string &query_str)
   prolog_(&prolog),
   query_id_(makeQueryId())
 {
-	json_prolog_msgs::PrologQueryRequest req;
-	json_prolog_msgs::PrologQueryResponse resp;
+	auto req = std::make_shared<json_prolog_msgs::srv::PrologQuery_Request>();
 
-	req.id = query_id_;
-	req.query = query_str;
+	req->id = query_id_;
+	req->query = query_str;
 
-	if(!prolog_->prolog_query.isValid() || !prolog_->prolog_query.exists())
+	if(!prolog_->prolog_query->get_client_handle() || !prolog_->prolog_query->service_is_ready())
 	{
 		throw ServerNotFound("No connection to the rosprolog server.");
 	}
-	if(!prolog_->prolog_query.call(req, resp))
+
+	auto result = prolog_->prolog_query->async_send_request(req);
+  	if (rclcpp::spin_until_future_complete(prolog_->get_node_base_interface(), result) != rclcpp::FutureReturnCode::SUCCESS){
+		throw PrologQuery::QueryError(std::string("Service call '") + prolog_->prolog_query->get_service_name() + "' failed");
+  	}
+
+	if(!result.get()->ok)
 	{
-		throw PrologQuery::QueryError("Service call '" + prolog_->prolog_query.getService() + "' failed");
-	}
-	if(!resp.ok)
-	{
-		throw PrologQuery::QueryError("Prolog query failed: " + resp.message);
+		throw PrologQuery::QueryError("Prolog query failed: " + result.get()->message);
 	}
 	// Instantiate the first solution
 	PrologQuery::iterator(*this).requestNextSolution();
@@ -138,19 +140,21 @@ PrologQuery::iterator PrologQuery::begin()
 
 void PrologQuery::finish()
 {
-	json_prolog_msgs::PrologFinishRequest req;
-	json_prolog_msgs::PrologFinishResponse resp;
+	auto req = std::make_shared<json_prolog_msgs::srv::PrologFinish_Request>();
 	
-	req.id = query_id_;
-	if(!prolog_->prolog_finish.call(req, resp))
-		throw PrologQuery::QueryError("Service call '" + prolog_->prolog_finish.getService() + "' failed");
-	
+	req->id = query_id_;
+	auto result = prolog_->prolog_finish->async_send_request(req);
+  	if (rclcpp::spin_until_future_complete(prolog_->get_node_base_interface(), result) != rclcpp::FutureReturnCode::SUCCESS){
+		throw PrologQuery::QueryError(std::string("Service call '") + prolog_->prolog_finish->get_service_name() + "' failed");
+  	}
 	finished_ = true;
 }
 
 std::string PrologQuery::makeQueryId()
 {
 	static int counter = 0;
-	return "ROSPROLOG_CPP_" + boost::lexical_cast<std::string>(ros::Time::now().toNSec()) +
+	rclcpp::Clock system_clock(RCL_SYSTEM_TIME);
+	const rclcpp::Time& time = system_clock.now();
+	return "ROSPROLOG_CPP_" + boost::lexical_cast<std::string>(time.nanoseconds()) +
 		boost::lexical_cast<std::string>(counter++);
 }

@@ -6,10 +6,10 @@
 #include <list>
 #include <map>
 // ROS
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 // rosprolog
-#include <rosprolog/JSONWrapper.h>
-#include <rosprolog/MessageJSON.h>
+#include <rosprolog/srv/json_wrapper.hpp>
+#include <rosprolog/msg/message_json.hpp>
 
 namespace json_ros {
 	/**
@@ -45,27 +45,28 @@ namespace json_ros {
 	public:
 		static Wrapper& get();
 		
-		rosprolog::JSONWrapperResponse call(const std::string &mode, const std::string &json_data);
+		rosprolog::srv::JSONWrapper_Response call(const std::string &mode, const std::string &json_data);
 		
-		rosprolog::JSONWrapperResponse subscribe(
+		rosprolog::srv::JSONWrapper_Response subscribe(
 			const std::string &subscriber,
 			const std::string &topic,
 			const std::string &json_data,
 			const term_t &callback);
 		
-		rosprolog::JSONWrapperResponse unsubscribe(
+		rosprolog::srv::JSONWrapper_Response unsubscribe(
 			const std::string &subscriber,
 			const std::string &topic,
 			const std::string &json_data);
 		
-		void handle_message(const rosprolog::MessageJSONConstPtr& message);
+		void handle_message(const rosprolog::msg::MessageJSON::SharedPtr message);
 		
 	private:
+		rclcpp::Node* node_ = nullptr;
 		std::map< std::string, std::list<json_ros::Subscriber> > subscribers_;
-		ros::ServiceClient service_;
-		ros::Subscriber subscriber_;
+		rclcpp::Client<rosprolog::srv::JSONWrapper>::SharedPtr service_;
+		rclcpp::Subscription<rosprolog::msg::MessageJSON>::SharedPtr subscriber_;
 		
-		Wrapper(ros::NodeHandle &nh);
+		Wrapper(rclcpp::Node *nh);
 		~Wrapper();
 		
 		Wrapper(Wrapper const&); // Don't Implement

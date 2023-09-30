@@ -32,24 +32,24 @@
 
 #include <string>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
+#include <json_prolog_msgs/srv/prolog_query.hpp>
+#include <json_prolog_msgs/srv/prolog_finish.hpp>
+#include <json_prolog_msgs/srv/prolog_next_solution.hpp>
 #include <rosprolog/rosprolog_client/PrologQuery.h>
 
-class PrologClient {
+class PrologClient : public rclcpp::Node {
 public:
-	ros::ServiceClient prolog_query;
-	ros::ServiceClient next_solution;
-	ros::ServiceClient prolog_finish;
+	rclcpp::Client<json_prolog_msgs::srv::PrologQuery>::SharedPtr prolog_query;
+	rclcpp::Client<json_prolog_msgs::srv::PrologNextSolution>::SharedPtr next_solution;
+	rclcpp::Client<json_prolog_msgs::srv::PrologFinish>::SharedPtr prolog_finish;
 	
 	PrologClient(const std::string &ns="/rosprolog");
-	PrologClient(const std::string &ns, bool persistent);
 	
 	PrologQuery query(const std::string &query_str);
 	PrologBindings once(const std::string &query_str);
 	
-	bool waitForServer(const ros::Duration &timeout=ros::Duration(-1));
-private:
-	ros::NodeHandle nh_;
+	bool waitForServer(const rclcpp::Duration &timeout=rclcpp::Duration(-1,0));
 };
 
 #endif

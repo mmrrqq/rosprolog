@@ -4,40 +4,34 @@
 // STD
 #include <thread>
 // ROS
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 // rosprolog
 #include <rosprolog/rosprolog_node/PrologPool.h>
+
+#include <rclcpp/rclcpp.hpp>
 
 namespace rosprolog_kb {
 	/**
 	 * A ROS node that is supposed to be used from
 	 * Prolog predicates to interact with ROS.
 	 **/
-	class KBNode {
+	class KBNode : public rclcpp::Node {
 	public:
-		/**
-		 * The node handle.
-		 */
-		static ros::NodeHandle& node();
 		/**
 		 * A pool of Prolog engines that can be used
 		 * in C++ code to call queries without
 		 * going via the *rosprolog_node*.
 		 */
 		static PrologPool& thread_pool();
-	private:
-		ros::NodeHandle nh_;
-		std::thread thread_;
-		PrologPool thread_pool_;
-		
+		static rclcpp::Node* node();
+		static KBNode& get();
+
 		KBNode();
 		~KBNode();
-		
-		KBNode(KBNode const&); // Don't Implement
-		void operator=(KBNode const&);     // Don't implement
-		
+	private:
+		std::thread thread_;
+		PrologPool thread_pool_;
 		void run();
-		static KBNode& get();
 	};
 };
 

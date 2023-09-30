@@ -66,6 +66,8 @@ public:
 	template<typename T>
 	operator T() const { return boost::any_cast<T>(value_); }
 
+	PrologValue& operator=(const PrologValue& other) {value_ = other.value_; type_= other.type_; return *this;}
+
 	value_type type() const { return type_; }
 	bool isDouble() const { return type_ == DOUBLE; }
 	bool isInt() const { return type_ == INT; }

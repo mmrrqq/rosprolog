@@ -29,22 +29,15 @@
 
 #include <rosprolog/rosprolog_client/PrologClient.h>
 
-#include <json_prolog_msgs/PrologQuery.h>
-#include <json_prolog_msgs/PrologNextSolution.h>
-#include <json_prolog_msgs/PrologFinish.h>
+#include <json_prolog_msgs/srv/prolog_query.h>
+#include <json_prolog_msgs/srv/prolog_next_solution.h>
+#include <json_prolog_msgs/srv/prolog_finish.h>
 
-PrologClient::PrologClient(const std::string &ns) : nh_("~")
+PrologClient::PrologClient(const std::string &ns) : rclcpp::Node("~")
 {
-	prolog_query = nh_.serviceClient<json_prolog_msgs::PrologQuery>(ns + "/query");
-	next_solution = nh_.serviceClient<json_prolog_msgs::PrologNextSolution>(ns + "/next_solution");
-	prolog_finish = nh_.serviceClient<json_prolog_msgs::PrologFinish>(ns + "/finish");
-}
-
-PrologClient::PrologClient(const std::string &ns, bool persistent)
-{
-	prolog_query = nh_.serviceClient<json_prolog_msgs::PrologQuery>(ns + "/query", persistent);
-	next_solution = nh_.serviceClient<json_prolog_msgs::PrologNextSolution>(ns + "/next_solution", persistent);
-	prolog_finish = nh_.serviceClient<json_prolog_msgs::PrologFinish>(ns + "/finish", persistent);
+	prolog_query = create_client<json_prolog_msgs::srv::PrologQuery>(ns + "/query");
+	next_solution = create_client<json_prolog_msgs::srv::PrologNextSolution>(ns + "/next_solution");
+	prolog_finish = create_client<json_prolog_msgs::srv::PrologFinish>(ns + "/finish");
 }
 
 PrologQuery PrologClient::query(const std::string &query_str)
@@ -60,9 +53,10 @@ PrologBindings PrologClient::once(const std::string &query_str)
 	return result;
 }
 
-bool PrologClient::waitForServer(const ros::Duration &timeout)
+bool PrologClient::waitForServer(const rclcpp::Duration &timeout)
 {
-	return prolog_query.waitForExistence(timeout) &&
-	    next_solution.waitForExistence(timeout) &&
-	    prolog_finish.waitForExistence(timeout);
+	const auto timeout_secs = std::chrono::seconds(long(timeout.seconds()));
+	return prolog_query->wait_for_service(timeout_secs) &&
+	    next_solution->wait_for_service(timeout_secs) &&
+	    prolog_finish->wait_for_service(timeout_secs);
 }

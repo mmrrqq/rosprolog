@@ -1,11 +1,11 @@
 #include <rosprolog/rosprolog_kb/rosprolog_kb.h>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 template <typename T>
 bool getParam(char *key, PlTerm &term) {
 	T value;
-	if(rosprolog_kb::node().getParam(std::string(key),value)) {
+	if(rosprolog_kb::node()->get_parameter(std::string(key),value)) {
 		term = value;
 		return TRUE;
 	}
@@ -16,7 +16,7 @@ bool getParam(char *key, PlTerm &term) {
     
 template <typename T>
 bool setParam(char *key, const T &value) {
-	rosprolog_kb::node().setParam(std::string(key),value);
+	rosprolog_kb::node()->set_parameter(rclcpp::Parameter(std::string(key),value));
 	return TRUE;
 };
 
@@ -26,7 +26,7 @@ bool setParam(char *key, const T &value) {
 
 PREDICATE(ros_param_get_string, 2) {
 	std::string value;
-	if(rosprolog_kb::node().getParam(std::string((char*)PL_A1),value)) {
+	if(rosprolog_kb::node()->get_parameter(std::string((char*)PL_A1),value)) {
 		PL_A2 = value.c_str();
 		return TRUE;
 	}

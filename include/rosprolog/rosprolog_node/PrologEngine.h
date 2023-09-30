@@ -71,19 +71,19 @@ private:
 	std::condition_variable thread_cv_;
 	std::condition_variable solutions_cv_;
 	std::condition_variable finished_cv_;
+
+	bool is_claimed_ = false;
+	bool is_finished_= false;
+	bool is_terminated_= false;
+	bool is_incremental_= false;
+	bool has_error_= false;
+	bool has_terminate_request_= false;
+	bool has_solution_request_= false;
+	bool has_finish_request_= false;
 	
-	bool is_claimed_;
-	bool is_finished_;
-	bool is_terminated_;
-	bool is_incremental_;
-	bool has_error_;
-	bool has_terminate_request_;
-	bool has_solution_request_;
-	bool has_finish_request_;
+	std::string goal_ = "";
 	
-	std::string goal_;
-	
-	std::string error_;
+	std::string error_ = "";
 	
 	std::list<boost::shared_ptr<std::string>> solutions_;
 	

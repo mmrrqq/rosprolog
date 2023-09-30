@@ -2,14 +2,14 @@
 #include <string>
 #include <iostream>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <rosprolog/rosprolog_client/PrologClient.h>
 
 using namespace std;
 
 int main(int argc, char *argv[])
 {
-	ros::init(argc, argv, "test_rosprolog");
+	rclcpp::init(argc, argv);
 	PrologClient pl;
 	
 	PrologQuery bdgs = pl.query("member(A, [1, 2, 3, 4]), B = ['x', A], C = foo(bar, A, B)");

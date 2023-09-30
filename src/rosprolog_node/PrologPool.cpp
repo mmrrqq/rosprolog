@@ -1,6 +1,6 @@
 
-#include <ros/ros.h>
-#include <ros/console.h>
+#include <rclcpp/rclcpp.hpp>
+#include <console_bridge/console.h>
 #include <rosprolog/rosprolog_node/PrologPool.h>
 
 PrologPool::PrologPool(int num_initial_engines)
