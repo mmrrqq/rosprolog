@@ -67,7 +67,7 @@ add_definitions(${JSON_GLIB_CFLAGS})
 link_directories(${JSON_GLIB_LIBRARIY_DIRS})
 
 # Output C++ client libraries
-set(CMAKE_CXX_FLAGS "-std=c++0x -pthread ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-pthread ${CMAKE_CXX_FLAGS}")
 include_directories(include
                     ${rmw_implementation_INCLUDE_DIRS})
 
