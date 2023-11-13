@@ -21,7 +21,7 @@
 #define NUM_PL_THREADS_DEFAULT 2
 #define NUM_ROS_THREADS_DEFAULT 2
 
-PrologNode::PrologNode(const char* ns) : rclcpp::Node(ns),
+PrologNode::PrologNode(const char* ns) : rclcpp::Node("prolog_node", ns),
 	  is_initialized_(false),
 	  thread_pool_(PrologNode::num_pl_threads(this))
 {
@@ -209,15 +209,7 @@ void sigint_handler(int /*sig*/)
 
 int main(int argc, char **argv)
 {
-	rclcpp::init(argc, argv);
-	auto rosprolog = std::make_shared<PrologNode>("rosprolog");
-	// rosprolog can serve requests in parallel
-	int num_ros_threads;
-	if(!rosprolog->get_parameter(PARAM_NUM_ROS_THREADS, num_ros_threads)) {
-		num_ros_threads = NUM_ROS_THREADS_DEFAULT;
-	}
-	rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), num_ros_threads);
-	executor.add_node(rosprolog);
+	rclcpp::init(argc, argv);	
 	// loop at 10Hz
 	rclcpp::Rate loop_rate(10.0); //Hz
 	// executor.spin();
@@ -240,15 +232,25 @@ int main(int argc, char **argv)
 		//pl_av[pl_ac++] = (char *) "-G256M";
 		pl_av[pl_ac] = NULL;
 	}
+	// NOTE: PL init must be called before creating the node!
 	PL_initialise(pl_ac, pl_av);
+
+	auto rosprolog = std::make_shared<PrologNode>("rosprolog");
+	// rosprolog can serve requests in parallel
+	int num_ros_threads;
+	if(!rosprolog->get_parameter(PARAM_NUM_ROS_THREADS, num_ros_threads)) {
+		num_ros_threads = NUM_ROS_THREADS_DEFAULT;
+	}
+	rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), num_ros_threads);
+	executor.add_node(rosprolog);
 	// Override the default ros sigint handler.
 	// This must be set after the first NodeHandle is created.
 	signal(SIGINT, sigint_handler);
 	//
 	if(rosprolog->is_initialized()) {
-		RCLCPP_INFO(rclcpp::get_logger("rosprolog"),"rosprolog service is running.");
+		RCLCPP_INFO(rclcpp::get_logger("rosprolog"),"rosprolog service is running.");		
 		while (rclcpp::ok() && !g_request_shutdown) {
-			rclcpp::spin_some(rosprolog);
+			executor.spin_some();
 			loop_rate.sleep();
 		}
 		RCLCPP_INFO(rclcpp::get_logger("rosprolog"),"rosprolog service is exiting.");

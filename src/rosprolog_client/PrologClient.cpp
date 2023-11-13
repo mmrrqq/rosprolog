@@ -33,11 +33,11 @@
 #include <json_prolog_msgs/srv/prolog_next_solution.h>
 #include <json_prolog_msgs/srv/prolog_finish.h>
 
-PrologClient::PrologClient(const std::string &ns) : rclcpp::Node("~")
+PrologClient::PrologClient(const std::string &ns) : rclcpp::Node("prolog_client", ns)
 {
-	prolog_query = create_client<json_prolog_msgs::srv::PrologQuery>(ns + "/query");
-	next_solution = create_client<json_prolog_msgs::srv::PrologNextSolution>(ns + "/next_solution");
-	prolog_finish = create_client<json_prolog_msgs::srv::PrologFinish>(ns + "/finish");
+	prolog_query = create_client<json_prolog_msgs::srv::PrologQuery>("~/query");
+	next_solution = create_client<json_prolog_msgs::srv::PrologNextSolution>("~/next_solution");
+	prolog_finish = create_client<json_prolog_msgs::srv::PrologFinish>("~/finish");
 }
 
 PrologQuery PrologClient::query(const std::string &query_str)

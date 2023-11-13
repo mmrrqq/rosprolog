@@ -3,14 +3,15 @@
   <arg name="initial_goal" default="true" />
   <arg name="num_pl_threads" default="2" />
   <arg name="num_ros_threads" default="4" />
+  <let name="mongodb_uri" value="$(env KNOWROB_MONGODB_URI 'mongodb://localhost:27017/?appname=knowrob')" />
   
-  <param name="initial_package" type="string" value="$(arg initial_package)" />
-  <param name="initial_goal" type="string" value="$(arg initial_goal)" />
+  <node name="rosprolog" pkg="rosprolog" exec="rosprolog_node" output="screen" >
+    <param name="mongodb_uri" value="$(var mongodb_uri)" />
+    <param name="initial_goal" value="$(var initial_goal)" />
+    <param name="initial_package" value="$(var initial_package)" />
+    <param name="num_pl_threads" value="$(var num_pl_threads)" />
+    <param name="num_ros_threads" value="$(var num_ros_threads)" />
+  </node>
   
-  <param name="num_pl_threads" type="int" value="$(arg num_pl_threads)" />
-  <param name="num_ros_threads" type="int" value="$(arg num_ros_threads)" />
-  
-  <node name="rosprolog" pkg="rosprolog" type="rosprolog_node" cwd="node" output="screen" />
-  
-  <node name="json_wrapper" pkg="rosprolog" type="json_ros.py" output="screen"/> 
+  <node name="json_wrapper" pkg="rosprolog" exec="json_ros.py" output="screen" />  
 </launch>

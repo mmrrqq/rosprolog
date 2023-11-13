@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 3.5)
 project(rosprolog)
 
@@ -54,10 +53,10 @@ rosidl_get_typesupport_target(ros_cpp_typesupport_target ${PROJECT_NAME} "rosidl
 find_package(json_prolog_msgs REQUIRED)
 
 # find SWI Prolog libraries
-find_package(PkgConfig)
-pkg_check_modules(SWIPL REQUIRED swipl)
-include_directories(${SWIPL_INCLUDE_DIRS})
-link_directories(${SWIPL_LIBRARY_DIRS})
+find_package(SWIPL REQUIRED)
+if(NOT SWIPL_FOUND)
+  message( FATAL_ERROR "swipl not found!" )
+endif()
 
 # libjson-glib-dev
 # used to parse JSON strings in the C++ client
@@ -82,8 +81,16 @@ add_library(rosprolog_kb
 	src/rosprolog_kb/tf.cpp
 	src/rosprolog_node/PrologEngine.cpp
 	src/rosprolog_node/PrologPool.cpp)
-target_include_directories(rosprolog_kb PUBLIC ${rcl_INCLUDE_DIRS} ${rclcpp_INCLUDE_DIRS} ${console_bridge_INCLUDE_DIRS} ${std_msgs_INCLUDE_DIRS} ${geometry_msgs_INCLUDE_DIRS} ${tf2_ros_INCLUDE_DIRS})
+
 target_link_libraries(rosprolog_kb ${SWIPL_LIBRARIES} "${ros_cpp_typesupport_target}")
+ament_target_dependencies(rosprolog_kb
+ rcl
+ rclcpp
+ console_bridge
+ std_msgs
+ geometry_msgs
+ tf2_ros)
+target_include_directories(rosprolog_kb PUBLIC ${SWIPL_INCLUDE_DIRS})
 
 ######
 add_executable(rosprolog_node
@@ -91,20 +98,42 @@ add_executable(rosprolog_node
 	src/rosprolog_node/PrologEngine.cpp
 	src/rosprolog_node/PrologPool.cpp
 )
-target_include_directories(rosprolog_node PUBLIC ${rcl_INCLUDE_DIRS} ${rclcpp_INCLUDE_DIRS} ${console_bridge_INCLUDE_DIRS} ${json_prolog_msgs_INCLUDE_DIRS})
-target_link_libraries(rosprolog_node ${SWIPL_LIBRARIES} ${rcl_LIBRARIES} ${rclcpp_LIBRARIES} ${json_prolog_msgs_LIBRARIES} "${ros_cpp_typesupport_target}")
+set_target_properties(rosprolog_node PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+target_link_libraries(rosprolog_node ${SWIPL_LIBRARIES} rosprolog_kb)
+ament_target_dependencies(rosprolog_node
+  rcl
+  rclcpp
+  console_bridge
+  json_prolog_msgs)
 
 ######
 add_library(rosprolog_client
-	src/rosprolog_client/PrologClient.cpp
-	src/rosprolog_client/PrologQuery.cpp
-	src/rosprolog_client/PrologBindings.cpp)
+  src/rosprolog_client/PrologClient.cpp
+  src/rosprolog_client/PrologQuery.cpp
+  src/rosprolog_client/PrologBindings.cpp)
+target_link_libraries(rosprolog_client ${JSON_GLIB_LIBRARIES} "${ros_cpp_typesupport_target}")
+ament_target_dependencies(rosprolog_client
+  rcl 
+  rclcpp 
+  json_prolog_msgs
+)
 target_include_directories(rosprolog_client PUBLIC ${rcl_INCLUDE_DIRS} ${rclcpp_INCLUDE_DIRS} ${json_prolog_msgs_INCLUDE_DIRS})
-target_link_libraries(rosprolog_client ${JSON_GLIB_LIBRARIES} ${rcl_LIBRARIES} ${rclcpp_LIBRARIES} ${json_prolog_msgs_LIBRARIES} "${ros_cpp_typesupport_target}")
 
 ######
 add_executable(test_rosprolog examples/test_rosprolog.cpp)
 target_link_libraries(test_rosprolog rosprolog_client "${ros_cpp_typesupport_target}")
+
+install(TARGETS rosprolog_kb
+  DESTINATION lib)
+
+install(TARGETS rosprolog_node
+  DESTINATION lib/${PROJECT_NAME})
+
+install(
+  PROGRAMS src/json_ros.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 install(
   DIRECTORY src/
@@ -131,9 +160,22 @@ install(PROGRAMS ${sh_files}
 install(PROGRAMS scripts/rosprolog_rest.py
   DESTINATION lib/${PROJECT_NAME}
 )
+install(PROGRAMS scripts/rosprolog_commandline.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(
+  PROGRAMS ${SWIPL_LIBRARIES}
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(
+  PROGRAMS ${SWIPL_LIBRARIES}
+  DESTINATION lib
+)
 
 # Export dependencies, include for downstream/client CMake-based packages
 ament_export_dependencies(rosidl_default_runtime)
+ament_export_libraries(rosprolog_kb)
 ament_export_include_directories(include)
 ament_package(
 	CONFIG_EXTRAS cmake/pack.cmake

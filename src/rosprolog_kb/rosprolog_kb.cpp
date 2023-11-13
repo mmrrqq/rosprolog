@@ -12,10 +12,11 @@
 /********** KBNode ***************/
 /*********************************/
     
-rosprolog_kb::KBNode::KBNode(): rclcpp::Node("~"),
+rosprolog_kb::KBNode::KBNode(): rclcpp::Node("rosprolog_kb"),
 	thread_(&KBNode::run, this),
 	thread_pool_(2)
 {
+	this->declare_parameter("mongodb_uri", "");
 }
 
 rosprolog_kb::KBNode::~KBNode()

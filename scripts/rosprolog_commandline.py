@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 import re
 import os
-import traceback
 
 from builtins import input
 
-import rospy
+import rclpy
 import readline
 import sys
 from rosprolog_client import PrologException, Prolog
 
-HISTORY_NAME = os.path.expanduser('~/.rosprolog_commandline_history')
+HISTORY_NAME = os.path.expanduser("~/.rosprolog_commandline_history")
 HISTORY_LENGTH = 300
-RE_SPACE = re.compile('.*\s+$', re.M)
+RE_SPACE = re.compile(".*\s+$", re.M)
 
 
 def read_single_keypress():
@@ -28,6 +27,7 @@ def read_single_keypress():
 
     """
     import termios, fcntl, sys, os
+
     fd = sys.stdin.fileno()
     # save old state
     flags_save = fcntl.fcntl(fd, fcntl.F_GETFL)
@@ -35,17 +35,25 @@ def read_single_keypress():
     # make raw - the way to do this comes from the termios(3) man page.
     attrs = list(attrs_save)  # copy the stored version to update
     # iflag
-    attrs[0] &= ~(termios.IGNBRK | termios.BRKINT | termios.PARMRK
-                  | termios.ISTRIP | termios.INLCR | termios.IGNCR
-                  | termios.ICRNL | termios.IXON)
+    attrs[0] &= ~(
+        termios.IGNBRK
+        | termios.BRKINT
+        | termios.PARMRK
+        | termios.ISTRIP
+        | termios.INLCR
+        | termios.IGNCR
+        | termios.ICRNL
+        | termios.IXON
+    )
     # oflag
     attrs[1] &= ~termios.OPOST
     # cflag
     attrs[2] &= ~(termios.CSIZE | termios.PARENB)
     attrs[2] |= termios.CS8
     # lflag
-    attrs[3] &= ~(termios.ECHONL | termios.ECHO | termios.ICANON
-                  | termios.ISIG | termios.IEXTEN)
+    attrs[3] &= ~(
+        termios.ECHONL | termios.ECHO | termios.ICANON | termios.ISIG | termios.IEXTEN
+    )
     termios.tcsetattr(fd, termios.TCSANOW, attrs)
     # turn off non-blocking
     fcntl.fcntl(fd, fcntl.F_SETFL, flags_save & ~os.O_NONBLOCK)
@@ -62,38 +70,41 @@ def read_single_keypress():
 
 
 class PQ(object):
-    def __init__(self):
-        self.prolog = Prolog()
+    def __init__(self, node):
+        self.node = node
+        self.prolog = Prolog(node)
         self.predicates = []
         self.load_namespace()
         self.load_all_predicates()
 
     def load_namespace(self):
-        q = 'findall([_X, _Y], rdf_current_ns(_X, _Y), NS)'
+        q = "findall([_X, _Y], rdf_current_ns(_X, _Y), NS)"
         solution = self.prolog.once(q)
-        print('namespaces:')
-        for ns in solution['NS']:
-            print('{}: {}'.format(ns[0], ns[1]))
-        print('-----------')
+        self.node.get_logger().info("namespaces:")
+        for ns in solution["NS"]:
+            self.node.get_logger().info("{}: {}".format(ns[0], ns[1]))
+        self.node.get_logger().info("-----------")
 
     def load_all_predicates(self):
-        q = 'findall(X, current_predicate(X/_);current_module(X), L)'
+        q = "findall(X, current_predicate(X/_);current_module(X), L)"
         solution = self.prolog.once(q)
-        self.predicates = [str(x) for x in solution['L']]
+        self.predicates = [str(x) for x in solution["L"]]
 
     def print_solution(self, solution):
         if solution == dict():
-            sys.stdout.write('true')
+            sys.stdout.write("true")
         else:
-            sys.stdout.write(',\n'.join(['{}: {}'.format(k, v) for k, v in solution.items()]))
+            sys.stdout.write(
+                ",\n".join(["{}: {}".format(k, v) for k, v in solution.items()])
+            )
 
     def start_commandline(self):
         try:
-            while not rospy.is_shutdown():
-                cmd = input('?- ')
-                if cmd == 'quit.' or cmd == 'halt.':
+            while rclpy.ok():
+                cmd = input("?- ")
+                if cmd == "quit." or cmd == "halt.":
                     break
-                elif cmd == '':
+                elif cmd == "":
                     continue
                 else:
                     try:
@@ -101,22 +112,22 @@ class PQ(object):
                         with self.prolog.query(cmd) as query:
                             for solution in query.solutions():
                                 if not print_false:
-                                    print(' ;')
-                                    print('')
+                                    print(" ;")
+                                    print("")
                                 print_false = False
                                 self.print_solution(solution)
                                 if solution == dict():
                                     break
                                 cmd = read_single_keypress()
-                                if cmd == '.':
+                                if cmd == ".":
                                     break
-                        if cmd.startswith('register_ros_package'):
+                        if cmd.startswith("register_ros_package"):
                             self.load_namespace()
                             self.load_all_predicates()
                         if print_false:
-                            print('false.')
+                            print("false.")
                         else:
-                            print('.')
+                            print(".")
                     except PrologException as e:
                         print(e)
         finally:
@@ -130,38 +141,39 @@ class PQ(object):
 
     def print_all_solutions(self, solutions):
         if len(solutions) == 0:
-            print('false.')
+            print("false.")
         else:
             for s in solutions:
                 if s == dict():
-                    print('true.')
+                    print("true.")
                 else:
                     for k, v in s.items():
-                        print('{}: {}'.format(k, v))
+                        print("{}: {}".format(k, v))
 
-    def completer(self, text, state):
+    def completer(self, _, state):
         buffer = readline.get_line_buffer()
         line = readline.get_line_buffer().split()
 
         if not line:
-            return [c + ' ' for c in self.predicates][state]
+            return [c + " " for c in self.predicates][state]
 
         # account for last argument ending in a space
         if RE_SPACE.match(buffer):
-            line.append('')
+            line.append("")
 
-        cmd = re.split(r',|\(|\[|\+|\=|\-', line[-1])[-1]
+        cmd = re.split(r",|\(|\[|\+|\=|\-", line[-1])[-1]
         results = [c for c in self.predicates if c.startswith(cmd)] + [None]
 
         return results[state]
 
 
-if __name__ == '__main__':
-    rospy.init_node('rosprolog_commandline', anonymous=True)
+if __name__ == "__main__":
+    rclpy.init()
+    node = rclpy.create_node("rosprolog_commandline")
     if os.path.isfile(HISTORY_NAME):
         readline.read_history_file(HISTORY_NAME)
     readline.set_history_length(HISTORY_LENGTH)
     readline.parse_and_bind("tab: complete")
-    pq = PQ()
+    pq = PQ(node)
     readline.set_completer(pq.completer)
     pq.start_commandline()
